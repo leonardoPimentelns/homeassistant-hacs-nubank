@@ -2,6 +2,7 @@ import logging
 import voluptuous
 from homeassistant import util
 from datetime import datetime, timedelta
+import pandas as pd
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation
@@ -57,6 +58,7 @@ class NuSensor(SensorEntity):
         self.bills = None
         self.account_balance = None
         self.transactions = None
+        self.group_title = None
         self.nubank = nubank
 
     @util.Throttle(timedelta(minutes=10))
@@ -67,8 +69,7 @@ class NuSensor(SensorEntity):
         self.account_balance = self.nubank.get_account_balance()
         self.bills = sum(t["amount"] for t in card_statements)
         self.transactions = self.nubank.get_card_statements()
-
-
+        self.group_title = pd.DataFrame(self.transactions).groupby(['title']).sum().to_json()
         self._attr_native_value = self.account_balance
 
     @property
@@ -82,6 +83,7 @@ class NuSensor(SensorEntity):
         attributes = {
             "Bills": self.bills,
             "Account Balance": self.account_balance,
-            "Transactions": self.transactions
+            #"Transactions": self.transactions,
+             "group_title" : self.group_title
         }
         return attributes
