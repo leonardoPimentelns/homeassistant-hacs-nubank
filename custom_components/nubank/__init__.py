@@ -1,1 +1,1 @@
-
+"""The nubank sensor integration."""
