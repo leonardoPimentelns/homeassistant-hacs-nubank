@@ -1,6 +1,7 @@
 import logging
 import voluptuous
 from homeassistant import util
+from datetime import datetime, timedelta
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation
@@ -21,7 +22,6 @@ _LOGGER = logging.getLogger(__name__)
 CONF_CLIENT_ID = "client_id"
 CONF_CLIENT_SECRET = "client_secret"
 CONF_CLIENT_CERT = "client_cert"
-UPDATE_FREQUENCY = timedelta(minutes=10)
 
 PLATFORM_SCHEMA = config_validation.PLATFORM_SCHEMA.extend(
     {
@@ -59,7 +59,7 @@ class NuSensor(SensorEntity):
         self.transactions = None
         self.nubank = nubank
 
-    @util.Throttle(UPDATE_FREQUENCY)
+    @util.Throttle(timedelta(minutes=10))
     def update(self):
         """Update state of sensor."""
 
