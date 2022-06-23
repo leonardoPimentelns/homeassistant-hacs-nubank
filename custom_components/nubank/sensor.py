@@ -56,6 +56,7 @@ class NuSensor(SensorEntity):
         self._attr_name = "Nubank"
         self.bills = None
         self.account_balance = None
+        self.transactions = None
         self.nubank = nubank
 
     @util.Throttle(UPDATE_FREQUENCY)
@@ -65,6 +66,8 @@ class NuSensor(SensorEntity):
         card_statements = self.nubank.get_card_statements()
         self.account_balance = self.nubank.get_account_balance()
         self.bills = sum(t["amount"] for t in card_statements)
+        self.transactions = self.nubank.get_card_statements()
+
 
         self._attr_native_value = self.account_balance
 
@@ -79,5 +82,6 @@ class NuSensor(SensorEntity):
         attributes = {
             "Bills": self.bills,
             "Account Balance": self.account_balance,
+            "Transactions": self.transactions
         }
         return attributes
