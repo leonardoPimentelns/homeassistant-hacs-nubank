@@ -1,6 +1,7 @@
 {
   "domain": "nubank",
   "name": "Nubank",
+  "version": "1.0.0", 
   "documentation": "https://www.home-assistant.io/integrations/pynubank",
   "zeroconf": [],
   "homekit": {},
