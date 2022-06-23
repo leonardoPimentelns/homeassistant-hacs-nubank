@@ -1,0 +1,8 @@
+{
+
+  "name": "Nubank",
+  "country": "BR",
+  "render_readme": true,
+  "domains": ["sensor"]
+
+}
