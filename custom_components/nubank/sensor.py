@@ -3,10 +3,11 @@ from __future__ import annotations
 
 from datetime import timedelta,datetime
 import logging
+from matplotlib.font_manager import json_dump
 from pynubank import Nubank, MockHttpClient
 import pandas as pd
 import voluptuous
-
+import json
 from homeassistant import util
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import HomeAssistant
@@ -47,8 +48,8 @@ def setup_platform(
     discovery_info
 ):
     """Set up the pyNubank sensors."""
-    nubank = Nubank()
-    # nubank = Nubank(MockHttpClient())
+    # nubank = Nubank()
+    nubank = Nubank(MockHttpClient())
     refresh_token = nubank.authenticate_with_cert(config[CONF_CLIENT_ID], config[CONF_CLIENT_SECRET], config[CONF_CLIENT_CERT])
     nubank.authenticate_with_refresh_token(refresh_token, config[CONF_CLIENT_CERT])
 
@@ -84,10 +85,10 @@ class NuSensor(SensorEntity):
         end_date = last_day_of_month(TODAY)
 
         self.purchases['time'] = pd.to_datetime(self.purchases['time'])
-        mask = (self.purchases['time'] > start_date ) & (self.purchases['time'] <= end_date)
-        self.purchases = pd.DataFrame(self.transactions).get(['description', 'amount','time'])
+        self.purchases[(self.purchases['time'] > start_date)  & (self.purchases['time'] <= end_date)]
+        self.purchases = pd.DataFrame(self.transactions).to_json()
 
-        self.purchases = self.purchases.loc[mask]
+
 
 
         print(self.purchases)
