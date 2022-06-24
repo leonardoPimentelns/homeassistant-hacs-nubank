@@ -1,13 +1,19 @@
+"""Platform for sensor integration."""
+from __future__ import annotations
+
+from datetime import timedelta,datetime
 import logging
-import voluptuous
-from homeassistant import util
-from datetime import datetime, timedelta
+from pynubank import Nubank, MockHttpClient
 import pandas as pd
+import voluptuous
+
+from homeassistant import util
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
+TODAY = str(datetime.now())
 
 REQUIREMENTS = [
     "pynubank==2.17.0",
@@ -15,7 +21,7 @@ REQUIREMENTS = [
     "qrcode==7.3.1",
     "pyOpenSSL==22.0.0",
     "colorama==0.4.3",
-    "requests-pkcs12==1.13"
+    "requests-pkcs12==1.13",
 ]
 
 _LOGGER = logging.getLogger(__name__)
@@ -23,6 +29,7 @@ _LOGGER = logging.getLogger(__name__)
 CONF_CLIENT_ID = "client_id"
 CONF_CLIENT_SECRET = "client_secret"
 CONF_CLIENT_CERT = "client_cert"
+UPDATE_FREQUENCY = timedelta(minutes=10)
 
 PLATFORM_SCHEMA = config_validation.PLATFORM_SCHEMA.extend(
     {
@@ -36,12 +43,12 @@ PLATFORM_SCHEMA = config_validation.PLATFORM_SCHEMA.extend(
 def setup_platform(
     hass,
     config,
-    add_entities,
-    discovery_info,
+    add_entities: AddEntitiesCallback,
+    discovery_info
 ):
     """Set up the pyNubank sensors."""
-    from pynubank import Nubank
     nubank = Nubank()
+    # nubank = Nubank(MockHttpClient())
     refresh_token = nubank.authenticate_with_cert(config[CONF_CLIENT_ID], config[CONF_CLIENT_SECRET], config[CONF_CLIENT_CERT])
     nubank.authenticate_with_refresh_token(refresh_token, config[CONF_CLIENT_CERT])
 
@@ -60,17 +67,32 @@ class NuSensor(SensorEntity):
         self.transactions = None
         self.group_title = None
         self.nubank = nubank
+        self.purchases = None
 
-    @util.Throttle(timedelta(minutes=10))
+    @util.Throttle(UPDATE_FREQUENCY)
     def update(self):
         """Update state of sensor."""
 
         card_statements = self.nubank.get_card_statements()
         self.account_balance = self.nubank.get_account_balance()
         self.bills = sum(t["amount"] for t in card_statements)
-        self.transactions = self.nubank.get_card_statements()
-        self.group_title = pd.DataFrame(self.transactions).groupby(['title']).sum().to_json()
         self._attr_native_value = self.account_balance
+        self.transactions = self.nubank.get_card_statements()
+        self.purchases = pd.DataFrame(self.transactions)
+
+        start_date = first_day_of_month(TODAY)
+        end_date = last_day_of_month(TODAY)
+
+        self.purchases['time'] = pd.to_datetime(self.purchases['time'])
+        mask = (self.purchases['time'] > start_date ) & (self.purchases['time'] <= end_date)
+        self.purchases = pd.DataFrame(self.transactions).get(['description', 'amount','time'])
+
+        self.purchases = self.purchases.loc[mask]
+
+
+        print(self.purchases)
+        print(start_date)
+        print(end_date)
 
     @property
     def icon(self):
@@ -83,7 +105,12 @@ class NuSensor(SensorEntity):
         attributes = {
             "Bills": self.bills,
             "Account Balance": self.account_balance,
-            #"Transactions": self.transactions,
-             "group_title" : self.group_title
+            # "Transactions": self.transactions,
+            "Purchases" :  self.purchases
         }
         return attributes
+def last_day_of_month(date: str) -> str:
+    return str(pd.Timestamp(date) + pd.offsets.MonthBegin(1) - pd.offsets.Day(+2))
+
+def first_day_of_month(date: str) -> str:
+    return str(pd.Timestamp(date) + pd.offsets.MonthBegin(-1) - pd.offsets.Day())
