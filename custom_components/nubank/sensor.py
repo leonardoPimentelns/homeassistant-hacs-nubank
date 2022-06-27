@@ -37,6 +37,7 @@ PLATFORM_SCHEMA = config_validation.PLATFORM_SCHEMA.extend(
         voluptuous.Required(CONF_CLIENT_ID): config_validation.string,
         voluptuous.Required(CONF_CLIENT_SECRET): config_validation.string,
         voluptuous.Required(CONF_CLIENT_CERT): config_validation.string,
+
     }
 )
 
@@ -48,52 +49,45 @@ def setup_platform(
     discovery_info
 ):
     """Set up the pyNubank sensors."""
-    # nubank = Nubank()
-    nubank = Nubank(MockHttpClient())
+    nubank = Nubank()
+    # nubank = Nubank(MockHttpClient())
     refresh_token = nubank.authenticate_with_cert(config[CONF_CLIENT_ID], config[CONF_CLIENT_SECRET], config[CONF_CLIENT_CERT])
     nubank.authenticate_with_refresh_token(refresh_token, config[CONF_CLIENT_CERT])
+    due_date = pd.to_datetime('today').date() + pd.DateOffset(day=7)
 
-    add_entities([NuSensor(nubank)])
+    add_entities([NuSensor(nubank,due_date)])
 
 
 class NuSensor(SensorEntity):
     """Representation of a pyNubank sensor."""
 
-    def __init__(self, nubank):
+    def __init__(self, nubank,due_date):
         """Initialize a new pyNubank sensor."""
 
         self._attr_name = "Nubank"
+        self.due_date = due_date
         self.bills = None
         self.account_balance = None
         self.transactions = None
         self.group_title = None
         self.nubank = nubank
-        self.purchases = None
+        self.bills = None
 
     @util.Throttle(UPDATE_FREQUENCY)
     def update(self):
         """Update state of sensor."""
-
-        card_statements = self.nubank.get_card_statements()
-        self.account_balance = self.nubank.get_account_balance()
-        self.bills = sum(t["amount"] for t in card_statements)
         self._attr_native_value = self.account_balance
+
+        self.bills= self.nubank.get_bills()
+        self.account_balance = self.nubank.get_account_balance()
         self.transactions = self.nubank.get_card_statements()
-        self.purchases = pd.DataFrame(self.transactions)
-
-        start_date = first_day_of_month(TODAY)
-        end_date = last_day_of_month(TODAY)
-
-        self.purchases['time'] = pd.to_datetime(self.purchases['time'])
-        self.purchases[(self.purchases['time'] > start_date)  & (self.purchases['time'] <= end_date)]
-        self.purchases = pd.DataFrame(self.transactions).to_json()
 
 
+        self.bills = pd.json_normalize(self.bills)
+        self.bills['summary.open_date'] = pd.to_datetime(self.bills['summary.due_date'])
+        self.bills =self.bills[self.bills['summary.open_date'] >= self.due_date]
+        self.bills = self.bills.to_json(orient='records')
 
-
-        print(self.purchases)
-        print(start_date)
-        print(end_date)
 
     @property
     def icon(self):
@@ -107,11 +101,6 @@ class NuSensor(SensorEntity):
             "Bills": self.bills,
             "Account Balance": self.account_balance,
             # "Transactions": self.transactions,
-            "Purchases" :  self.purchases
+            "Bills" :  self.bills
         }
         return attributes
-def last_day_of_month(date: str) -> str:
-    return str(pd.Timestamp(date) + pd.offsets.MonthBegin(1) - pd.offsets.Day(+2))
-
-def first_day_of_month(date: str) -> str:
-    return str(pd.Timestamp(date) + pd.offsets.MonthBegin(-1) - pd.offsets.Day())
