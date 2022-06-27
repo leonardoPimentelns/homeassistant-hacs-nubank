@@ -86,7 +86,7 @@ class NuSensor(SensorEntity):
         self.bills = pd.json_normalize(self.bills)
         self.bills['summary.open_date'] = pd.to_datetime(self.bills['summary.due_date'])
         self.bills =self.bills[self.bills['summary.open_date'] >= self.due_date]
-        self.bills = self.bills.to_json(orient='records')
+        self.bills = self.bills.to_json(orient='index')
 
 
     @property
