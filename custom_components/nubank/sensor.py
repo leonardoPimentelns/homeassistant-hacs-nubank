@@ -82,6 +82,7 @@ class NuSensor(SensorEntity):
         self.account_balance = self.nubank.get_account_balance()
         self.transactions = self.nubank.get_card_statements()
 
+
         self.bills = pd.json_normalize(self.bills)
         self.bills['summary.open_date'] = pd.to_datetime(self.bills['summary.due_date'])
         self.bills =self.bills[self.bills['summary.open_date'] >= self.due_date]
