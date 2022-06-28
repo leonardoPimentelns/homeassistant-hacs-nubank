@@ -53,7 +53,8 @@ def setup_platform(
     # nubank = Nubank(MockHttpClient())
     refresh_token = nubank.authenticate_with_cert(config[CONF_CLIENT_ID], config[CONF_CLIENT_SECRET], config[CONF_CLIENT_CERT])
     nubank.authenticate_with_refresh_token(refresh_token, config[CONF_CLIENT_CERT])
-    due_date = pd.to_datetime('today').date() + pd.DateOffset(day=7)
+    date = pd.to_datetime('today').date() + pd.DateOffset(day=7)
+    due_date = date.strftime("%m/%d/%Y")
 
     add_entities([NuSensor(nubank,due_date)])
 
@@ -81,8 +82,8 @@ class NuSensor(SensorEntity):
         self.bills= self.nubank.get_bills()
         self.account_balance = self.nubank.get_account_balance()
         self.transactions = self.nubank.get_card_statements()
-        data = self.due_date.strftime("%m/%d/%Y")
-        self.bills =[x for x  in self.bills if x['summary']['due_date'] >= data]
+    
+        self.bills =[x for x  in self.bills if x['summary']['due_date'] >= self.due_date]
 
 
     @property
