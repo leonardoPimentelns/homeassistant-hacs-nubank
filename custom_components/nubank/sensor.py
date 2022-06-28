@@ -82,7 +82,7 @@ class NuSensor(SensorEntity):
         self.account_balance = self.nubank.get_account_balance()
         self.transactions = self.nubank.get_card_statements()
         data = self.due_date.strftime("%m/%d/%Y")
-        self.bills =[x for x  in self.bills if x['summary']['due_date'] == data]
+        self.bills =[x for x  in self.bills if x['summary']['due_date'] >= data]
 
 
     @property
