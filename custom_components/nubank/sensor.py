@@ -54,7 +54,7 @@ def setup_platform(
     refresh_token = nubank.authenticate_with_cert(config[CONF_CLIENT_ID], config[CONF_CLIENT_SECRET], config[CONF_CLIENT_CERT])
     nubank.authenticate_with_refresh_token(refresh_token, config[CONF_CLIENT_CERT])
     date = pd.to_datetime('today').date() + pd.DateOffset(day=7)
-    due_date = date.strftime("%m/%d/%Y")
+    due_date = date.strftime("%Y-%m-%d")
 
     add_entities([NuSensor(nubank,due_date)])
 
