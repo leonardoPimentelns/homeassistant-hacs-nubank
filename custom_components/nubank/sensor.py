@@ -94,7 +94,6 @@ class NuSensor(SensorEntity):
     def extra_state_attributes(self):
         """Return attribute sensor."""
         attributes = {
-            "Bills": self.bills,
             "Account Balance": self.account_balance,
             # "Transactions": self.transactions,
             "Bills" :  self.bills
