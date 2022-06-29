@@ -15,7 +15,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
-locale.setlocale(locale.LC_ALL, '')
+locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
 REQUIREMENTS = [
     "pynubank==2.17.0",
     "requests==2.27.1",
