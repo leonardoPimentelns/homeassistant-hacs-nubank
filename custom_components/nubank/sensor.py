@@ -8,14 +8,14 @@ from pynubank import Nubank, MockHttpClient
 import pandas as pd
 import voluptuous
 import json
+import locale 
 from homeassistant import util
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
-TODAY = str(datetime.now())
-
+locale.setlocale(locale.LC_ALL, '')
 REQUIREMENTS = [
     "pynubank==2.17.0",
     "requests==2.27.1",
@@ -66,24 +66,46 @@ class NuSensor(SensorEntity):
         """Initialize a new pyNubank sensor."""
 
         self._attr_name = "Nubank"
+        self.nubank = nubank
         self.due_date = due_date
         self.bills = None
-        self.account_balance = None
-        self.transactions = None
-        self.group_title = None
-        self.nubank = nubank
-        self.bills = None
+        self.total_cumulative = None
+        self.total_balance = None
+        self.past_balance = None
+        self.effective_due_date = None
+        self.close_date = None
+        self.total_bills = None
+
+       
+
 
     @util.Throttle(UPDATE_FREQUENCY)
     def update(self):
         """Update state of sensor."""
         self._attr_native_value = self.account_balance
-
         self.bills= self.nubank.get_bills()
+        count = len(self.bills)-1
         self.account_balance = self.nubank.get_account_balance()
         self.transactions = self.nubank.get_card_statements()
-    
-        self.bills =[x for x  in self.bills if x['summary']['due_date'] >= self.due_date]
+        self.bills =[x for x  in self.bills if x['summary']['due_date'] > self.due_date]
+        self.bills = pd.json_normalize(self.bills)
+
+        self.total_cumulative = self.bills['summary.total_cumulative'][count]
+        self.total_balance = self.bills['summary.total_balance'][count]
+        self.past_balance = self.bills['summary.past_balance'][count]
+        self.total_cumulative = currency(self.total_cumulative)
+        self.total_balance = currency(self.total_balance)
+        self.past_balance = currency(self.past_balance)
+       
+        self.effective_due_date = self.bills['summary.effective_due_date'][count]
+        self.effective_due_date = format_date(self.effective_due_date)
+
+        self.close_date = self.bills['summary.close_date'][count]
+        self.close_date = format_date(self.close_date) 
+        
+        self.total_bills = self.bills['summary.total_balance'].sum()
+        self.total_bills = currency(self.total_bills)
+            
 
 
     @property
@@ -95,8 +117,20 @@ class NuSensor(SensorEntity):
     def extra_state_attributes(self):
         """Return attribute sensor."""
         attributes = {
-            "Account Balance": self.account_balance,
-            # "Transactions": self.transactions,
-            "Bills" :  self.bills
+            "total_cumulative": self.total_cumulative,
+            "total_balance": self.total_balance,
+            "past_balance": self.past_balance,
+            "effective_due_date" :  self.effective_due_date,
+            "close_date" :  self.close_date,
+            "total_bills" :  self.total_bills
         }
+        
         return attributes
+
+def currency(valor):
+    valor = locale.currency(valor/100,grouping=True)
+    return valor
+
+def format_date(data):
+    data = pd.to_datetime(data).strftime("%d %b.")
+    return data
