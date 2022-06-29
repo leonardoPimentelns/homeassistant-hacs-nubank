@@ -84,13 +84,14 @@ class NuSensor(SensorEntity):
         """Update state of sensor."""
         self.account_balance = self.nubank.get_account_balance()
         self._attr_native_value = self.account_balance
-        
+
         self.bills= self.nubank.get_bills()
-        count = len(self.bills)-1
+       
 
         self.transactions = self.nubank.get_card_statements()
         self.bills =[x for x  in self.bills if x['summary']['due_date'] > self.due_date]
         self.bills = pd.json_normalize(self.bills)
+        count = len(self.bills)-1
 
         self.total_cumulative = self.bills['summary.total_cumulative'][count]
         self.total_balance = self.bills['summary.total_balance'][count]
