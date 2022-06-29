@@ -8,14 +8,13 @@ from pynubank import Nubank, MockHttpClient
 import pandas as pd
 import voluptuous
 import json
-import locale 
 from homeassistant import util
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
-locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
+
 REQUIREMENTS = [
     "pynubank==2.17.0",
     "requests==2.27.1",
@@ -131,9 +130,8 @@ class NuSensor(SensorEntity):
         return attributes
 
 def currency(valor):
-    valor = locale.currency(valor/100,grouping=True)
+    valor =  "{:.2f}".format(valor/100)
     return valor
-
 def format_date(data):
     data = pd.to_datetime(data).strftime("%d %b.")
     return data
