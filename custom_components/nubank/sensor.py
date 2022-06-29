@@ -82,10 +82,12 @@ class NuSensor(SensorEntity):
     @util.Throttle(UPDATE_FREQUENCY)
     def update(self):
         """Update state of sensor."""
+        self.account_balance = self.nubank.get_account_balance()
         self._attr_native_value = self.account_balance
+        
         self.bills= self.nubank.get_bills()
         count = len(self.bills)-1
-        self.account_balance = self.nubank.get_account_balance()
+
         self.transactions = self.nubank.get_card_statements()
         self.bills =[x for x  in self.bills if x['summary']['due_date'] > self.due_date]
         self.bills = pd.json_normalize(self.bills)
