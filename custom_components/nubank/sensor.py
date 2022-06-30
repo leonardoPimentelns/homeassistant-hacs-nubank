@@ -9,9 +9,9 @@ import voluptuous
 from homeassistant import const
 from homeassistant.helpers import entity
 from homeassistant import util
-from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+
+
 
 REQUIREMENTS = [
     "pynubank==2.17.0",
@@ -22,12 +22,11 @@ _LOGGER = logging.getLogger(__name__)
 CONF_CLIENT_ID = "client_id"
 CONF_CLIENT_SECRET = "client_secret"
 CONF_CLIENT_CERT = "client_cert"
-UPDATE_FREQUENCY = timedelta(minutes=10)
 DEFAULT_NAME = 'Nubank'
+UPDATE_FREQUENCY = timedelta(minutes=10)
 FATURA = 'Fatura'
 CONTA = 'Conta'
 SENSOR_NAME = '{} {}'
-
 PLATFORM_SCHEMA = config_validation.PLATFORM_SCHEMA.extend(
     {
         voluptuous.Required(CONF_CLIENT_ID): config_validation.string,
@@ -45,7 +44,7 @@ PLATFORM_SCHEMA = config_validation.PLATFORM_SCHEMA.extend(
 def setup_platform(
     hass,
     config,
-    add_entities: AddEntitiesCallback,
+    add_entities,
     discovery_info
 ):
     """Set up the pyNubank sensors."""
