@@ -23,6 +23,7 @@ CONF_CLIENT_ID = "client_id"
 CONF_CLIENT_SECRET = "client_secret"
 CONF_CLIENT_CERT = "client_cert"
 UPDATE_FREQUENCY = timedelta(minutes=10)
+DEFAULT_NAME = 'Nubank'
 FATURA = 'Fatura'
 CONTA = 'Conta'
 SENSOR_NAME = '{} {}'
