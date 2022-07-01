@@ -15,6 +15,11 @@ from homeassistant.helpers import config_validation
 
 REQUIREMENTS = [
     "pynubank==2.17.0",
+    "requests==2.27.1",
+    "qrcode==7.3.1",
+    "pyOpenSSL==22.0.0",
+    "colorama==0.4.3",
+    "requests-pkcs12==1.13",
 ]
 
 _LOGGER = logging.getLogger(__name__)
@@ -52,7 +57,7 @@ def setup_platform(
     # nubank = Nubank(MockHttpClient())
     refresh_token = nubank.authenticate_with_cert(config[CONF_CLIENT_ID], config[CONF_CLIENT_SECRET], config[CONF_CLIENT_CERT])
     nubank.authenticate_with_refresh_token(refresh_token, config[CONF_CLIENT_CERT])
-    date = pd.to_datetime('today').date() + pd.DateOffset(day=7)
+    date = pd.to_datetime('today').date() + pd.offsets.MonthBegin(-1) + pd.DateOffset(day=7)
     due_date = date.strftime("%Y-%m-%d")
     name = config.get(const.CONF_NAME)
 
@@ -78,6 +83,7 @@ class NuSensor(entity.Entity):
         self.close_date = None
         self.total_bills = None
         self.transactions = None
+
     @property
     def extra_state_attributes(self):
         """Return device specific state attributes."""
@@ -125,11 +131,20 @@ class FaturaSensor(NuSensor):
         count = len(self.bills)-1
 
         self.total_cumulative = self.bills['summary.total_cumulative'][count]
-        self.total_balance = self.bills['summary.total_balance'][count]
         self.past_balance = self.bills['summary.past_balance'][count]
         self.total_cumulative = currency(self.total_cumulative)
-        self.total_balance = currency(self.total_balance)
         self.past_balance = currency(self.past_balance)
+
+        self.status = self.bills['state'][count]
+
+        if self.status == "closed":
+           self.total_balance = self.bills['summary.remaining_balance'][count]
+        else:
+           self.total_balance = self.bills['summary.total_balance'][count]
+        self.total_balance = currency(self.total_balance)
+
+
+
 
         self.effective_due_date = self.bills['summary.effective_due_date'][count]
         self.effective_due_date = format_date(self.effective_due_date)
@@ -140,12 +155,6 @@ class FaturaSensor(NuSensor):
         self.total_bills = self.bills['summary.total_balance'].sum()
         self.total_bills = currency(self.total_bills)
 
-        self.transactions= self.nubank.get_card_statements()
-        groupby_mounth = pd.DataFrame(self.transactions).get(['description', 'title', 'amount', 'time'])
-        self.transactions =[x for x  in self.transactions if x['time'] > self.due_date ]
-        self.transactions = pd.json_normalize(self.transactions)
-        self.transactions = pd.DataFrame(groupby_mounth).groupby(['title']).sum().to_json()
-
         self._state = self.status
         self._attributes = {}
 
@@ -155,12 +164,11 @@ class FaturaSensor(NuSensor):
         """Return device specific state attributes."""
         self._attributes = {
             "total_cumulative": self.total_cumulative,
-            "total_balance": self.total_balance,
             "past_balance": self.past_balance,
             "effective_due_date" :  self.effective_due_date,
             "close_date" :  self.close_date,
             "total_bills" :  self.total_bills,
-            "transactions": self.transactions
+            "total_balance": self.total_balance
         }
         return  self._attributes
 
