@@ -6,6 +6,7 @@ import logging
 from pynubank import Nubank
 import pandas as pd
 import voluptuous
+import json
 from homeassistant import const
 from homeassistant.helpers import entity
 from homeassistant import util
@@ -82,7 +83,7 @@ class NuSensor(entity.Entity):
         self.effective_due_date = None
         self.close_date = None
         self.total_bills = None
-        self.transactions = None
+        self.mouth_transactions = None
 
     @property
     def extra_state_attributes(self):
@@ -138,11 +139,23 @@ class FaturaSensor(NuSensor):
         self.status = self.bills['state'][count]
 
         if self.status == "closed":
-           self.total_balance = self.bills['summary.remaining_balance'][count]
+            self.total_balance = self.bills['summary.remaining_balance'][count]
         else:
-           self.total_balance = self.bills['summary.total_balance'][count]
+            self.total_balance = self.bills['summary.total_balance'][count]
         self.total_balance = currency(self.total_balance)
+        transactions = self.nubank.get_card_statements()
+        start_date = pd.to_datetime('today').date() +pd.offsets.MonthBegin(-2) - pd.offsets.Day(+2)
+        end_date = pd.to_datetime('today').date() + pd.offsets.MonthBegin() - pd.offsets.Day(+2)
+        start_date = start_date.strftime("%Y-%m-%d")
+        end_date = end_date.strftime("%Y-%m-%d")
+        transactions =[x for x  in transactions if x['time'] > start_date < end_date ]
+        df = pd.DataFrame(columns=['description','title','amount','date'])
+        for item in transactions:
+            df.loc[len(df.index)] = [item['description'],item['title'], item['amount']/100,item['time']]
+        mouth_tr = df.to_json(orient="table",index=False)
 
+        parsed = json.loads(mouth_tr)
+        self.mouth_transactions =json.dumps(parsed)
 
 
 
@@ -159,6 +172,8 @@ class FaturaSensor(NuSensor):
         self._attributes = {}
 
 
+
+
     @property
     def extra_state_attributes(self):
         """Return device specific state attributes."""
@@ -168,7 +183,8 @@ class FaturaSensor(NuSensor):
             "effective_due_date" :  self.effective_due_date,
             "close_date" :  self.close_date,
             "total_bills" :  self.total_bills,
-            "total_balance": self.total_balance
+            "total_balance": self.total_balance,
+            "transactions" : self.mouth_transactions
         }
         return  self._attributes
 
