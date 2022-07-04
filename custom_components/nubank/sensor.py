@@ -152,7 +152,7 @@ class FaturaSensor(NuSensor):
         df = pd.DataFrame(columns=['description','title','amount','date'])
         for item in transactions:
             df.loc[len(df.index)] = [item['description'],item['title'], item['amount']/100,item['time']]
-        parsed = df.to_json(orient="records")
+        parsed = df.to_json(orient="table",index=False)
         self.mouth_transactions = json.loads(parsed)
 
 
