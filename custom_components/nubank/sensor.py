@@ -152,10 +152,9 @@ class FaturaSensor(NuSensor):
         df = pd.DataFrame(columns=['description','title','amount','date'])
         for item in transactions:
             df.loc[len(df.index)] = [item['description'],item['title'], item['amount']/100,item['time']]
-        mouth_tr = df.to_json(orient="table",index=False)
+        parsed = df.to_json(orient="records")
+        self.mouth_transactions = json.loads(parsed)
 
-        parsed = json.loads(mouth_tr)
-        self.mouth_transactions =json.dumps(parsed)
 
 
 
@@ -173,7 +172,6 @@ class FaturaSensor(NuSensor):
 
 
 
-
     @property
     def extra_state_attributes(self):
         """Return device specific state attributes."""
@@ -184,9 +182,10 @@ class FaturaSensor(NuSensor):
             "close_date" :  self.close_date,
             "total_bills" :  self.total_bills,
             "total_balance": self.total_balance,
-            "transactions" : self.mouth_transactions
+            "mouth_transactions": self.mouth_transactions
         }
         return  self._attributes
+
 
 class ContaSensor(NuSensor):
     """Representation of a pyNubank sensor."""
