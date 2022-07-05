@@ -149,9 +149,10 @@ class FaturaSensor(NuSensor):
         start_date = start_date.strftime("%Y-%m-%d")
         end_date = end_date.strftime("%Y-%m-%d")
         transactions =[x for x  in transactions if x['time'] > start_date < end_date ]
-        df = pd.DataFrame(columns=['description','title','amount','date'])
+        df = pd.DataFrame(columns=['date','description','amount'])
         for item in transactions:
-            df.loc[len(df.index)] = [item['description'],item['title'], item['amount']/100,item['time']]
+            df.loc[len(df.index)] = [item['time'], item['description']/100,item['amount']]
+        df['date'] = format_date_weekDay(df['date'])
         parsed = df.to_json(orient="table",index=False)
         self.mouth_transactions = json.loads(parsed)
 
@@ -213,5 +214,8 @@ def currency(valor):
     valor =  "{:.2f}".format(valor/100)
     return valor
 def format_date(data):
-    data = pd.to_datetime(data).strftime("%d %b.")
+    data = pd.to_datetime(data).dt.strftime("%d %b.")
+    return data
+def format_date_weekDay(data):
+    data = pd.to_datetime(data).dt.strftime("%a %d %b.")
     return data
