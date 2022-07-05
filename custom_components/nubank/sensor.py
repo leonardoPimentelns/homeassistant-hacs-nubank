@@ -214,7 +214,7 @@ def currency(valor):
     valor =  "{:.2f}".format(valor/100)
     return valor
 def format_date(data):
-    data = pd.to_datetime(data).dt.strftime("%d %b.")
+    data = pd.to_datetime(data).strftime("%d %b.")
     return data
 def format_date_weekDay(data):
     data = pd.to_datetime(data).dt.strftime("%a %d %b.")
