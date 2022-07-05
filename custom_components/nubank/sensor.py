@@ -153,6 +153,7 @@ class FaturaSensor(NuSensor):
         for item in transactions:
             df.loc[len(df.index)] = [item['time'], item['description'],item['amount']/100]
         df['date'] = format_date_weekDay(df['date'])
+        df['amount'] = df['amount'].map('R${}'.format)
         parsed = df.to_json(orient="table",index=False)
         self.mouth_transactions = json.loads(parsed)
 
