@@ -84,6 +84,7 @@ class NuSensor(entity.Entity):
         self.close_date = None
         self.total_bills = None
         self.mouth_transactions = None
+        self.accont_balance: None
 
     @property
     def extra_state_attributes(self):
@@ -212,8 +213,8 @@ class ContaSensor(NuSensor):
 
     @util.Throttle(UPDATE_FREQUENCY)
     def update(self):
-
-        self._state = self.status
+        self.accont_balance = self.nubank.get_account_balance()
+        self._state = self.accont_balance
         self._attributes = {}
 
     @property
