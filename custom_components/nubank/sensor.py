@@ -131,10 +131,7 @@ class FaturaSensor(NuSensor):
         self.bills = pd.json_normalize(self.bills)
         count = len(self.bills)-1
 
-        self.total_cumulative = self.bills['summary.total_cumulative'][count]
-        self.past_balance = self.bills['summary.past_balance'][count]
-        self.total_cumulative = currency(self.total_cumulative)
-        self.past_balance = currency(self.past_balance)
+
 
         self.status = self.bills['state'][count]
 
@@ -142,19 +139,35 @@ class FaturaSensor(NuSensor):
             self.total_balance = self.bills['summary.remaining_balance'][count]
         else:
             self.total_balance = self.bills['summary.total_balance'][count]
+
         self.total_balance = currency(self.total_balance)
+        self.total_cumulative = self.bills['summary.total_cumulative'][count]
+        self.past_balance = self.bills['summary.past_balance'][count]
+        self.total_cumulative = currency(self.total_cumulative)
+        self.past_balance = currency(self.past_balance)
+
         transactions = self.nubank.get_card_statements()
-        start_date = pd.to_datetime('today').date() +pd.offsets.MonthBegin(-2) - pd.offsets.Day(+2)
+        start_date = pd.to_datetime('today').date() +pd.offsets.MonthBegin(-1) - pd.offsets.Day(+2)
         end_date = pd.to_datetime('today').date() + pd.offsets.MonthBegin() - pd.offsets.Day(+2)
+
         start_date = start_date.strftime("%Y-%m-%d")
         end_date = end_date.strftime("%Y-%m-%d")
+
+
+
         transactions =[x for x  in transactions if x['time'] > start_date < end_date ]
-        df = pd.DataFrame(columns=['date','description','amount'])
-        for item in transactions:
-            df.loc[len(df.index)] = [item['time'], item['description'],item['amount']/100]
-        df['date'] = format_date_weekDay(df['date'])
-        df['amount'] = df['amount'].map('R${}'.format)
-        parsed = df.to_json(orient="table",index=False)
+        # df = pd.DataFrame(columns=['date','description','amount'])
+        # for item in transactions:
+        #     df.loc[len(df.index)] = [item['time'], item['description'],item['amount']/100]
+        # df['date'] = format_date_weekDay(df['date'])
+
+        groupby_mounth = pd.DataFrame(transactions).get(['description', 'title', 'amount', 'time'])
+
+        transactions = pd.DataFrame(groupby_mounth).groupby(['title']).sum()
+        transactions['amount'] = transactions['amount']/100
+        transactions['Porcentagem'] =  transactions['amount'] /transactions['amount'].sum() *100
+        transactions['amount'] = transactions['amount'].map('R${}'.format)
+        parsed = transactions.to_json(orient="table",index=True,double_precision=2)
         self.mouth_transactions = json.loads(parsed)
 
 
