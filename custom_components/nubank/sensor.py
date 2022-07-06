@@ -167,7 +167,6 @@ class FaturaSensor(NuSensor):
         transactions['amount'] = transactions['amount']/100
         transactions['percent'] =  transactions['amount'] /transactions['amount'].sum() *100
         transactions['amount'] = transactions['amount'].map('R${}'.format)
-        transactions['percent'] = transactions['percent'].map('{}%'.format)
         parsed = transactions.to_json(orient="table",index=True,double_precision=2)
         self.mouth_transactions = json.loads(parsed)
 
