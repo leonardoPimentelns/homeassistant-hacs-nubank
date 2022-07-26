@@ -1,7 +1,7 @@
 """Platform for sensor integration."""
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import timedelta,datetime
 import logging
 from matplotlib.font_manager import json_dump
 from pynubank import Nubank
@@ -198,7 +198,7 @@ class ContaSensor(NuSensor):
 #     valor =  "{:.2f}".format(valor/100)
 #     return valor
 def format_date(data):
-    data = pd.to_datetime(data).strftime("%d %b.")
+    data = datetime.strptime(data,"%d %b.")
     return data
 # def format_date_weekDay(data):
 #     data = pd.to_datetime(data).dt.strftime("%a %d %b.")
