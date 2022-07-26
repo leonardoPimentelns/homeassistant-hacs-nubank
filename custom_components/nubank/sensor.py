@@ -145,8 +145,14 @@ class FaturaSensor(NuSensor):
             self.bills_mounth = json.loads(parsed)
 
         for bills_details  in self.bills:
-            transactions = self.nubank.get_bill_details(bills_details)
-            self.mouth_transactions = transactions ['bill']['line_items']
+            if bills_details['summary']['close_date'] == end_date:
+                gb = self.nubank.get_bill_details(bills_details)
+                transactions = pd.DataFrame(gb['bill']['line_items'])
+                transactions['amount'] = transactions['amount']/100
+                transactions['amount'] = transactions['amount'].map('R${}'.format)
+                parsed = transactions.to_json(orient="table",index=True,double_precision=2)
+                self.mouth_transactions = json.loads(parsed)
+      
 
 
 
