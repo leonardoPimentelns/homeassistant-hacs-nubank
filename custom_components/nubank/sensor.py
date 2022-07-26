@@ -150,7 +150,7 @@ class FaturaSensor(NuSensor):
             transactions['amount'] = transactions['amount']/100
             transactions['amount'] = transactions['amount'].map('R${}'.format)
             transactions['post_date'] = pd.to_datetime(transactions['post_date'])
-            transactions['post_date'] = transactions['post_date'].apply(lambda x: x.strftime('%d %b.'))
+            transactions['post_date'] = transactions['post_date'].apply(lambda x: x.strftime('%a %d %b.'))
             parsed = transactions.to_json(orient="table",index=True,double_precision=2)
             self.mouth_transactions = json.loads(parsed)
       
