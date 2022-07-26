@@ -148,6 +148,7 @@ class FaturaSensor(NuSensor):
             gb = self.nubank.get_bill_details(bills_details)
             transactions = pd.DataFrame(gb['bill']['line_items'])
             transactions['amount'] = transactions['amount']/100
+            transactions['post_date'] = format_date(transactions['post_date'])
             transactions['amount'] = transactions['amount'].map('R${}'.format)
             parsed = transactions.to_json(orient="table",index=True,double_precision=2)
             self.mouth_transactions = json.loads(parsed)
@@ -196,9 +197,9 @@ class ContaSensor(NuSensor):
 # def currency(valor):
 #     valor =  "{:.2f}".format(valor/100)
 #     return valor
-# def format_date(data):
-#     data = pd.to_datetime(data).strftime("%d %b.")
-#     return data
+def format_date(data):
+    data = pd.to_datetime(data).strftime("%d %b.")
+    return data
 # def format_date_weekDay(data):
 #     data = pd.to_datetime(data).dt.strftime("%a %d %b.")
 #     return data
