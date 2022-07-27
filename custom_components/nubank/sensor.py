@@ -139,7 +139,7 @@ class FaturaSensor(NuSensor):
             df_bills['amount'] = df_bills['amount']/100
             df_bills['amount'] =  "R${0}".format(df_bills['amount'])
             df_bills['post_date'] = pd.to_datetime(df_bills['post_date'])
-            df_bills['post_date'] = df_bills['post_date'].strftime('%A %d %b.')
+            df_bills['post_date'] = df_bills['post_date'].strftime('%a %d %b.')
         self.mouth_transactions = get_bill_details
 
 
