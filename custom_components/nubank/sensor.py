@@ -1,7 +1,7 @@
 """Platform for sensor integration."""
 from __future__ import annotations
 
-from datetime import timedelta,datetime
+from datetime import timedelta
 import logging
 from matplotlib.font_manager import json_dump
 from pynubank import Nubank
@@ -80,14 +80,13 @@ class NuSensor(entity.Entity):
         self._attr_name = "Nubank"
         self.due_date = due_date
         self.nubank = nubank
-        self.bills = None
         self.status = None
         self.total_cumulative = None
         self.total_balance = None
         self.total_bills = None
         self.mouth_transactions = None
         self.accont_balance= None
-        self.mouth_transactions_summary=None
+        self.get_bill_details=None
 
     @property
     def extra_state_attributes(self):
@@ -130,34 +129,45 @@ class FaturaSensor(NuSensor):
 
     @util.Throttle(UPDATE_FREQUENCY)
     def update(self):
-        self.bills= self.nubank.get_bills()
-        self.bills =[x for x  in self.bills if x['summary']['due_date'] == self.due_date ]
+        bills= self.nubank.get_bills()
+        bills =[x for x  in bills if x['summary']['due_date'] == self.due_date ]
+        get_bill_details = self.nubank.get_bill_details(bills[0])
+        get_bill_details['bill']['summary']['total_balance'] = get_bill_details['bill']['summary']['total_balance']/100
+        get_bill_details['bill']['summary']['total_balance'] = "R${0}".format(get_bill_details['bill']['summary']['total_balance'])
 
-        for bills_details  in self.bills:
-            df_bills = self.nubank.get_bill_details(bills_details)
-            df_bills = pd.DataFrame(df_bills['bill']['line_items']).get(['amount','category'])
-            df_bills = pd.DataFrame(df_bills).groupby(['category']).sum()
-            df_bills = df_bills.loc[df_bills['amount'] > 0]
+        for df_bills in get_bill_details['bill']['line_items']:
             df_bills['amount'] = df_bills['amount']/100
-            df_bills['percent'] =  df_bills['amount'] /df_bills['amount'].sum() *100
-            df_bills['amount'] = df_bills['amount'].map('R${}'.format)
-            parsed = df_bills.to_json(orient="table",index=True,double_precision=2)
+            df_bills['amount'] =  "R${0}".format(df_bills['amount'])
+            df_bills['post_date'] = pd.to_datetime(df_bills['post_date'])
+            df_bills['post_date'] = df_bills['post_date'].strftime('%A %d %b.')
+        self.mouth_transactions = get_bill_details
+
+
+
+
+
+
+
+
+        for bills_details  in bills:
+            bills_details = self.nubank.get_bill_details(bills[0])
+            bills_details = pd.DataFrame(bills_details['bill']['line_items']).get(['amount','category'])
+            bills_details = pd.DataFrame(bills_details).groupby(['category']).sum()
+            bills_details = bills_details.loc[bills_details['amount'] > 0]
+            bills_details['amount'] = bills_details['amount']/100
+            bills_details['percent'] =  bills_details['amount'] /bills_details['amount'].sum() *100
+            bills_details['amount'] = bills_details['amount'].map('R${}'.format)
+            parsed = bills_details.to_json(orient="table",double_precision=2)
             self.bills_mounth = json.loads(parsed)
 
-        for bills_details  in self.bills:
-            gb = self.nubank.get_bill_details(bills_details)
-            transactions = pd.DataFrame(gb['bill']['line_items'])
-            transactions['amount'] = transactions['amount']/100
-            transactions['amount'] = transactions['amount'].map('R${}'.format)
-            transactions['post_date'] = pd.to_datetime(transactions['post_date'])
-            transactions['post_date'] = transactions['post_date'].apply(lambda x: x.strftime('%a %d %b.'))
-            parsed = transactions.to_json(orient="table",index=True,double_precision=2)
-            self.mouth_transactions = json.loads(parsed)
-      
+        # for bills_details  in self.bills:
+        #     transactions = self.nubank.get_bill_details(bills_details)
+
+        #     self.mouth_transactions = transactions ['bill']['line_items']
 
 
 
-        self._state = ''
+        self._state =  get_bill_details['bill']['summary']['total_balance'] 
         self._attributes = {}
 
 
@@ -167,8 +177,8 @@ class FaturaSensor(NuSensor):
         """Return device specific state attributes."""
         self._attributes = {
             "total_cumulative": self.bills_mounth,
-            "summary": self.bills,
             "transactions": self.mouth_transactions
+
         }
         return  self._attributes
 
@@ -198,9 +208,9 @@ class ContaSensor(NuSensor):
 # def currency(valor):
 #     valor =  "{:.2f}".format(valor/100)
 #     return valor
-def format_date(s: pd.Series):
-    s = pd.to_datetime.strptime(s,"%d %b.")
-    return s
+# def format_date(data):
+#     data = pd.to_datetime(data).strftime("%d %b.")
+#     return data
 # def format_date_weekDay(data):
 #     data = pd.to_datetime(data).dt.strftime("%a %d %b.")
 #     return data
