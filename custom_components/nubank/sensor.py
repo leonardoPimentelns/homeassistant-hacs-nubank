@@ -155,7 +155,8 @@ class FaturaSensor(NuSensor):
             bills_details = pd.DataFrame(bills_details).groupby(['category']).sum()
             bills_details = bills_details.loc[bills_details['amount'] > 0]
             bills_details['amount'] = bills_details['amount']/100
-            bills_details['percent'] =  bills_details['amount'] /bills_details['amount'].sum() *100
+            bills_details['percent'] =  round(bills_details['amount'] /bills_details['amount'].sum() *100)
+            bills_details['percent'] = bills_details['percent'].map('{}%'.format)
             bills_details['amount'] = bills_details['amount'].map('R${}'.format)
             parsed = bills_details.to_json(orient="table",double_precision=2)
             self.bills_mounth = json.loads(parsed)
@@ -167,7 +168,7 @@ class FaturaSensor(NuSensor):
 
 
 
-        self._state =  get_bill_details['bill']['summary']['total_balance'] 
+        self._state =  get_bill_details['bill']['summary']['total_balance']
         self._attributes = {}
 
 
