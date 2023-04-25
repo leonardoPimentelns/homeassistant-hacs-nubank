@@ -1,12 +1,12 @@
 """Platform for sensor integration."""
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import timedelta,datetime,date
 import logging
 from matplotlib.font_manager import json_dump
 from pynubank import Nubank
-
-import pandas as pd
+import random
+import decimal
 import voluptuous
 import json
 from homeassistant import const
@@ -15,15 +15,6 @@ from homeassistant import util
 from homeassistant.helpers import config_validation
 
 
-
-REQUIREMENTS = [
-    "pynubank==2.17.0",
-    "requests==2.27.1",
-    "qrcode==7.3.1",
-    "pyOpenSSL==22.0.0",
-    "colorama==0.4.3",
-    "requests-pkcs12==1.13",
-]
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -58,30 +49,36 @@ def setup_platform(
 ):
     """Set up the pyNubank sensors."""
     nubank = Nubank()
+   
+   
 
-    # nubank = Nubank(MockHttpClient())
     refresh_token = nubank.authenticate_with_cert(config[CONF_CLIENT_ID], config[CONF_CLIENT_SECRET], config[CONF_CLIENT_CERT])
     nubank.authenticate_with_refresh_token(refresh_token, config[CONF_CLIENT_CERT])
-    date = pd.to_datetime('today').date() + pd.offsets.MonthBegin() + pd.DateOffset(day=7)
 
-    due_date = date.strftime("%Y-%m-%d")
-    name = config.get(const.CONF_NAME)
+    today = date.today()
+    first_day_next_month = (today.replace(day=1) + timedelta(days=32)).replace(day=1)
+    due_date = first_day_next_month + timedelta(days=6)
 
-    add_entities([FaturaSensor(nubank,due_date,name),ContaSensor(nubank,due_date,name)],True)
+
+    due_date_str = due_date.strftime("%Y-%m-%d")
+    
+
+    add_entities([FaturaSensor(nubank,due_date_str),ContaSensor(nubank,due_date_str)],True)
 
 
 class NuSensor(entity.Entity):
     """Representation of a pyNubank sensor."""
 
-    def __init__(self, nubank, due_date, name):
+    def __init__(self, nubank, due_date_str,):
         """Initialize a new pyNubank sensor."""
-        self._name = name
-        self._state = const.STATE_UNKNOWN
+        
+        self._state = None
         self._attr_name = "Nubank"
-        self.due_date = due_date
+        self.due_date_str = due_date_str
         self.nubank = nubank
         self.status = None
         self.total_cumulative = None
+        self.credit_card_available = None
         self.total_balance = None
         self.total_bills = None
         self.mouth_transactions = None
@@ -102,74 +99,76 @@ class NuSensor(entity.Entity):
     def icon(self):
         """Return icon."""
         return "mdi:bank"
-
     @property
     def state(self):
         """Returns the state of the sensor."""
         return self._state
 
-    @property
-    def name(self):
-        """Returns the name of the sensor."""
-        return SENSOR_NAME.format(self._name, self._name_suffix)
 
-    @property
-    def _name_suffix(self):
-        """Returns the name suffix of the sensor."""
-        raise NotImplementedError
 
 
 class FaturaSensor(NuSensor):
     """Representation of a pyNubank sensor."""
 
-    @property
-    def _name_suffix(self):
-        """Returns the name suffix of the sensor."""
-        return FATURA
-
     @util.Throttle(UPDATE_FREQUENCY)
     def update(self):
-        bills= self.nubank.get_bills()
-        bills =[x for x  in bills if x['summary']['due_date'] == self.due_date ]
-        get_bill_details = self.nubank.get_bill_details(bills[0])
-        get_bill_details['bill']['summary']['total_balance'] = get_bill_details['bill']['summary']['total_balance']/100
-        get_bill_details['bill']['summary']['total_balance'] = "R${0}".format(get_bill_details['bill']['summary']['total_balance'])
+        bills = self.nubank.get_bills()
+        data = self.nubank.get_credit_card_balance()
 
-        for df_bills in get_bill_details['bill']['line_items']:
-            df_bills['amount'] = df_bills['amount']/100
-            df_bills['amount'] =  "R${0}".format(df_bills['amount'])
-            df_bills['post_date'] = pd.to_datetime(df_bills['post_date'])
-            df_bills['post_date'] = df_bills['post_date'].strftime('%a %d %b.')
-        self.mouth_transactions = get_bill_details
+        self.credit_card_available = decimal.Decimal(str(data["available"] / 100))
+        filtered_bills = [x for x in bills if x['summary']['due_date'] == self.due_date_str]
+        bill_details = self.nubank.get_bill_details(filtered_bills[0])
+        bill_details['bill']['summary']['total_balance'] = bill_details['bill']['summary']['total_balance'] / 100
+        bill_details['bill']['summary']['total_balance'] = "R${0}".format(bill_details['bill']['summary']['total_balance'])
+
+        for bill in bill_details['bill']['line_items']:
+            bill['amount'] = bill['amount'] / 100
+            bill['amount'] = "R${0}".format(bill['amount'])
+            bill['post_date'] = datetime.strptime(bill['post_date'], '%Y-%m-%d').strftime('%a %d %b.')
+            if 'index' in bill and bill['index'] > 0:
+                bill['parcelas'] = f"{bill['index'] + 1}/{bill['charges']}"
+
+        self.mouth_transactions = bill_details
+
+        for bill in filtered_bills:
+            bill_details = self.nubank.get_bill_details(bill)
+            line_items = bill_details['bill']['line_items']
+            total_amount =0
+            attributes = []
+
+            category_totals = {}
+            for item in line_items:
+                title = item['title']
+                amount = item['amount'] 
+                category = item['category']
+                
+                if amount < 0:
+                    continue
+                
+                if category not in category_totals:
+                    category_totals[category] = 0
+                category_totals[category] += amount
+                
+                attributes.append({"title": title, "amount": amount, "category": category})
+            
+            bill_total_amount = round(sum(item['amount'] for item in line_items if item['amount'] > 0) / 100, 2)
+            total_amount += bill_total_amount
+            bills_details = {"total": f"R${bill_total_amount}","available":self.credit_card_available, "categories": []}
+            
+            for category, total in category_totals.items():
+                if total > 0:
+                    percentage = round((total / bill_total_amount) * 100, 2)/100
+                    amount_string = round(total / 100, 2)
+                    category_details = {"name": category, "total": amount_string, "percentage":f"{round(percentage,2)}%","color": format("#{:06x}".format(random.randint(0, 0xFFFFFF)))}
+                    bills_details["categories"].append(category_details)
+                    bills_details["categories"].sort(key=lambda x: x['total'],reverse=True) 
+                   
+
+                    self.bills_mounth = bills_details
 
 
 
-
-
-
-
-
-        for bills_details  in bills:
-            bills_details = self.nubank.get_bill_details(bills[0])
-            bills_details = pd.DataFrame(bills_details['bill']['line_items']).get(['amount','category'])
-            bills_details = pd.DataFrame(bills_details).groupby(['category']).sum()
-            bills_details = bills_details.loc[bills_details['amount'] > 0]
-            bills_details['amount'] = bills_details['amount']/100
-            bills_details['percent'] =  round(bills_details['amount'] /bills_details['amount'].sum() *100)
-            bills_details['percent'] = bills_details['percent'].map('{}%'.format)
-            bills_details['amount'] = bills_details['amount'].map('R${}'.format)
-            parsed = bills_details.to_json(orient="table",double_precision=2)
-            self.bills_mounth = json.loads(parsed)
-
-        # for bills_details  in self.bills:
-        #     transactions = self.nubank.get_bill_details(bills_details)
-
-        #     self.mouth_transactions = transactions ['bill']['line_items']
-
-
-
-        self._state =  get_bill_details['bill']['summary']['total_balance']
-        self._attributes = {}
+        self._state =  total_amount
 
 
 
@@ -187,11 +186,6 @@ class FaturaSensor(NuSensor):
 class ContaSensor(NuSensor):
     """Representation of a pyNubank sensor."""
 
-    @property
-    def _name_suffix(self):
-        """Returns the name suffix of the sensor."""
-        return CONTA
-
     @util.Throttle(UPDATE_FREQUENCY)
     def update(self):
         self.accont_balance = self.nubank.get_account_balance()
@@ -202,7 +196,6 @@ class ContaSensor(NuSensor):
     def extra_state_attributes(self):
         """Return device specific state attributes."""
         self._attributes = {
-
 
         }
         return  self._attributes
