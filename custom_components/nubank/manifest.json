@@ -4,8 +4,7 @@
   "version": "1.0.3", 
   "documentation": "https://www.home-assistant.io/integrations/pynubank",
   "zeroconf": [],
-  "requirements": ["pynubank==2.17.0",
-                    "pandas"], 
+  "requirements": ["pynubank"], 
   "homekit": {},
   "dependencies": [],
   "codeowners": []
